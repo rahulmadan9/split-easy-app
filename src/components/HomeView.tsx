@@ -3,10 +3,79 @@ import { motion } from "framer-motion";
 import { Users, Plus, UserPlus, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfiles } from "@/hooks/useProfiles";
-import { useGroups } from "@/hooks/useGroups";
+import { useGroups, type Group } from "@/hooks/useGroups";
 import { useCurrentGroup } from "@/hooks/useCurrentGroup";
+import { useGroupBalance } from "@/hooks/useGroupBalance";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { JoinGroupDialog } from "@/components/JoinGroupDialog";
+
+const formatAmount = (num: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.abs(num));
+
+const GroupBalanceItem = ({ group, onSelect }: { group: Group; onSelect: (id: string) => void }) => {
+  const { myBalance, loading } = useGroupBalance(group.id);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-between py-1.5">
+        <span className="text-xs text-muted-foreground">{group.name}</span>
+        <span className="text-xs text-muted-foreground animate-pulse">...</span>
+      </div>
+    );
+  }
+
+  const isSettled = Math.abs(myBalance) < 0.01;
+  const othersOweMe = myBalance > 0;
+
+  return (
+    <button
+      onClick={() => onSelect(group.id)}
+      className="flex items-center justify-between py-1.5 w-full text-left hover:bg-accent/30 rounded px-1 -mx-1 transition-colors"
+    >
+      <span className="text-xs text-muted-foreground truncate mr-2">{group.name}</span>
+      <span
+        className={`text-xs font-medium whitespace-nowrap ${
+          isSettled
+            ? "text-muted-foreground"
+            : othersOweMe
+            ? "text-positive"
+            : "text-negative"
+        }`}
+      >
+        {isSettled ? "Settled" : `${othersOweMe ? "+" : "-"}${formatAmount(myBalance)}`}
+      </span>
+    </button>
+  );
+};
+
+const BalanceSummary = ({ groups, onSelectGroup }: { groups: Group[]; onSelectGroup: (id: string) => void }) => {
+  if (groups.length === 0) {
+    return (
+      <>
+        <h3 className="text-sm font-medium text-muted-foreground mb-1">Your Balance</h3>
+        <p className="text-xs text-muted-foreground">
+          Create or join a group to start tracking expenses
+        </p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Balance by Group</h3>
+      <div className="divide-y divide-border/30">
+        {groups.map((group) => (
+          <GroupBalanceItem key={group.id} group={group} onSelect={onSelectGroup} />
+        ))}
+      </div>
+    </>
+  );
+};
 
 const HomeView = () => {
   const { currentProfile } = useProfiles();
@@ -33,17 +102,21 @@ const HomeView = () => {
         </p>
       </motion.div>
 
-      {/* Summary placeholder */}
+      {/* Balance summary across groups */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
         className="rounded-xl border border-border/50 bg-card p-5"
       >
-        <h3 className="text-sm font-medium text-muted-foreground mb-1">Your Balance</h3>
-        <p className="text-xs text-muted-foreground">
-          Select a group to view detailed balances
-        </p>
+        <BalanceSummary
+          groups={nonPersonalGroups}
+          onSelectGroup={(id) => {
+            setCurrentGroup(id);
+            const event = new CustomEvent("switchTab", { detail: "balance" });
+            window.dispatchEvent(event);
+          }}
+        />
       </motion.div>
 
       {/* Groups list */}
