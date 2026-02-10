@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isGroupMember(groupId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+    }
+
+    function isGroupAdmin(groupId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Groups collection
+    match /groups/{groupId} {
+      // Read if member
+      allow read: if isGroupMember(groupId);
+
+      // Create if authenticated
+      allow create: if isAuthenticated() &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      // Update if admin (but cannot change isPersonal)
+      allow update: if isGroupAdmin(groupId) &&
+        request.resource.data.isPersonal == resource.data.isPersonal;
+
+      // Delete if admin and not personal group
+      allow delete: if isGroupAdmin(groupId) &&
+        resource.data.isPersonal == false;
+
+      // Members subcollection
+      match /members/{memberId} {
+        // Read if group member
+        allow read: if isGroupMember(groupId);
+
+        // Create: self-join or admin adds member
+        allow create: if isAuthenticated() && (
+          request.auth.uid == memberId ||
+          isGroupAdmin(groupId)
+        );
+
+        // Update: admin can change roles
+        allow update: if isGroupAdmin(groupId);
+
+        // Delete: admin can kick, or self-leave (but not personal group)
+        allow delete: if isAuthenticated() && (
+          isGroupAdmin(groupId) ||
+          (request.auth.uid == memberId &&
+           get(/databases/$(database)/documents/groups/$(groupId)).data.isPersonal == false)
+        );
+      }
+    }
+
+    // Allow listing groups by invite code (for joining)
+    match /groups/{groupId} {
+      allow list: if isAuthenticated();
+    }
+
+    // Expenses collection
+    match /expenses/{expenseId} {
+      // Read if group member
+      allow read: if isAuthenticated() &&
+        isGroupMember(resource.data.groupId);
+
+      // Create if group member
+      allow create: if isAuthenticated() &&
+        isGroupMember(request.resource.data.groupId) &&
+        request.resource.data.amount > 0 &&
+        request.resource.data.amount <= 1000000 &&
+        request.resource.data.description.size() > 0 &&
+        request.resource.data.description.size() <= 200;
+
+      // Update if payer or group admin
+      allow update: if isAuthenticated() && (
+        resource.data.paidBy == request.auth.uid ||
+        isGroupAdmin(resource.data.groupId)
+      );
+
+      // Delete if payer or group admin
+      allow delete: if isAuthenticated() && (
+        resource.data.paidBy == request.auth.uid ||
+        isGroupAdmin(resource.data.groupId)
+      );
+    }
+
+    // Recurring expenses collection
+    match /recurringExpenses/{docId} {
+      allow read: if isAuthenticated() &&
+        isGroupMember(resource.data.groupId);
+
+      allow create: if isAuthenticated() &&
+        isGroupMember(request.resource.data.groupId) &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        isGroupAdmin(resource.data.groupId)
+      );
+
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        isGroupAdmin(resource.data.groupId)
+      );
+    }
+
+    // Recurring confirmations collection
+    match /recurringConfirmations/{docId} {
+      allow read: if isAuthenticated() &&
+        isGroupMember(resource.data.groupId);
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.confirmedBy == request.auth.uid &&
+        isGroupMember(request.resource.data.groupId);
+
+      // Immutable - no updates
+
+      // Delete by confirmer only
+      allow delete: if isAuthenticated() &&
+        resource.data.confirmedBy == request.auth.uid;
+    }
+  }
+}
