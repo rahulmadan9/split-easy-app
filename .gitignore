@@ -37,3 +37,18 @@ functions/node_modules/
 .env
 .env.local
 .env.*.local
+
+# Mobile (Expo)
+mobile/node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+mobile/dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+google-services.json
+google-play-service-account.json
