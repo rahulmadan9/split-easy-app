@@ -117,7 +117,7 @@ export const useGroups = () => {
   }, [user]);
 
   const createGroup = useCallback(
-    async (name: string): Promise<string> => {
+    async (name: string): Promise<{ id: string; inviteCode: string }> => {
       if (!currentProfile) throw new Error("Not logged in");
 
       const result = validateGroup({ name });
@@ -155,7 +155,7 @@ export const useGroups = () => {
         joinedAt: serverTimestamp(),
       });
 
-      return groupRef.id;
+      return { id: groupRef.id, inviteCode };
     },
     [currentProfile]
   );

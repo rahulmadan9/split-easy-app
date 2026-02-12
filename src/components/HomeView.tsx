@@ -8,7 +8,11 @@ import { useCurrentGroup } from "@/hooks/useCurrentGroup";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { JoinGroupDialog } from "@/components/JoinGroupDialog";
 
-const HomeView = () => {
+interface HomeViewProps {
+  onSwitchTab?: (tab: string) => void;
+}
+
+const HomeView = ({ onSwitchTab }: HomeViewProps) => {
   const { currentProfile } = useProfiles();
   const { groups, loading } = useGroups();
   const { setCurrentGroup } = useCurrentGroup();
@@ -79,9 +83,7 @@ const HomeView = () => {
                 transition={{ delay: 0.05 * index }}
                 onClick={() => {
                   setCurrentGroup(group.id);
-                  // Navigate to balance tab - dispatches via parent
-                  const event = new CustomEvent("switchTab", { detail: "balance" });
-                  window.dispatchEvent(event);
+                  onSwitchTab?.("balance");
                 }}
                 className="w-full flex items-center justify-between rounded-xl border border-border/50 bg-card p-4 hover:bg-accent/50 transition-colors text-left"
               >

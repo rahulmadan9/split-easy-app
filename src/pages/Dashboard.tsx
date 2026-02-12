@@ -96,7 +96,7 @@ const Dashboard = () => {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.2 }}
             >
-              <HomeView />
+              <HomeView onSwitchTab={(tab) => setActiveTab(tab as TabType)} />
             </motion.div>
           )}
 
