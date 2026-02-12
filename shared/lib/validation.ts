@@ -104,6 +104,19 @@ export const groupSchema = z.object({
 export type GroupInput = z.infer<typeof groupSchema>;
 
 /**
+ * Display name validation schema
+ */
+export const displayNameSchema = z.object({
+  display_name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name must be less than 50 characters"),
+});
+
+export type DisplayNameInput = z.infer<typeof displayNameSchema>;
+
+/**
  * Recurring expense template validation schema
  */
 export const recurringExpenseSchema = z.object({
@@ -206,6 +219,23 @@ export const validateGroup = (
       return { success: false, error: error.errors[0]?.message || "Invalid group data" };
     }
     return { success: false, error: "Invalid group data" };
+  }
+};
+
+/**
+ * Validates display name data
+ */
+export const validateDisplayName = (
+  data: unknown
+): { success: true; data: DisplayNameInput } | { success: false; error: string } => {
+  try {
+    const validated = displayNameSchema.parse(data);
+    return { success: true, data: validated };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.errors[0]?.message || "Invalid name" };
+    }
+    return { success: false, error: "Invalid name" };
   }
 };
 

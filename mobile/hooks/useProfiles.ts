@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
-import { doc, onSnapshot, Timestamp } from "firebase/firestore";
+import { useEffect, useState, useCallback } from "react";
+import { updateProfile } from "firebase/auth";
+import { doc, onSnapshot, Timestamp, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { validateDisplayName } from "../../shared/lib/validation";
 import { useAuth } from "./useAuth";
 
 export interface Profile {
@@ -16,6 +18,7 @@ export const useProfiles = () => {
   const { user } = useAuth();
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingDisplayName, setUpdatingDisplayName] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -52,5 +55,31 @@ export const useProfiles = () => {
     return () => unsubscribe();
   }, [user]);
 
-  return { currentProfile, loading };
+  const updateDisplayName = useCallback(
+    async (displayName: string) => {
+      if (!user) throw new Error("Not logged in");
+
+      const result = validateDisplayName({ display_name: displayName });
+      if (result.success === false) {
+        throw new Error(result.error);
+      }
+
+      setUpdatingDisplayName(true);
+      try {
+        const nextName = result.data.display_name;
+        await Promise.all([
+          updateProfile(user, { displayName: nextName }),
+          updateDoc(doc(db, "users", user.uid), {
+            displayName: nextName,
+            updatedAt: serverTimestamp(),
+          }),
+        ]);
+      } finally {
+        setUpdatingDisplayName(false);
+      }
+    },
+    [user]
+  );
+
+  return { currentProfile, loading, updateDisplayName, updatingDisplayName };
 };

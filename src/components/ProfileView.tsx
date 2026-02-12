@@ -1,23 +1,62 @@
-import { useState } from "react";
-import { LogOut, Plus, UserPlus, Users, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LogOut, Plus, UserPlus, Users, Settings, Pencil, Check, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useGroups } from "@/hooks/useGroups";
 import { GroupManagement } from "@/components/GroupManagement";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { JoinGroupDialog } from "@/components/JoinGroupDialog";
+import { toast } from "sonner";
 
 const ProfileView = () => {
   const { signOut, user } = useAuth();
-  const { currentProfile } = useProfiles();
+  const { currentProfile, updateDisplayName, updatingDisplayName } = useProfiles();
   const { groups } = useGroups();
   const [managingGroupId, setManagingGroupId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
 
   const nonPersonalGroups = groups.filter((g) => !g.isPersonal);
+  const currentName = currentProfile?.display_name || "";
+  const isNameChanged = nameDraft.trim() !== currentName;
+
+  useEffect(() => {
+    if (!isEditingName) {
+      setNameDraft(currentName);
+    }
+  }, [currentName, isEditingName]);
+
+  const handleStartEditingName = () => {
+    setNameDraft(currentName);
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditingName = () => {
+    setNameDraft(currentName);
+    setIsEditingName(false);
+  };
+
+  const handleSaveDisplayName = async () => {
+    if (!isNameChanged) {
+      setIsEditingName(false);
+      return;
+    }
+
+    try {
+      await updateDisplayName(nameDraft);
+      toast.success("Name updated");
+      setIsEditingName(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update name";
+      toast.error(message);
+    }
+  };
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -28,8 +67,64 @@ const ProfileView = () => {
         className="rounded-xl border border-border/50 bg-card p-6 space-y-4"
       >
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Name</p>
-          <p className="text-lg font-medium">{currentProfile?.display_name}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Name</p>
+            {!isEditingName && (
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                onClick={handleStartEditingName}
+                aria-label="Edit display name"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {isEditingName ? (
+            <div className="space-y-2">
+              <Input
+                value={nameDraft}
+                onChange={(event) => setNameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleSaveDisplayName();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    handleCancelEditingName();
+                  }
+                }}
+                placeholder="Enter your name"
+                autoFocus
+                maxLength={50}
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleCancelEditingName}
+                  disabled={updatingDisplayName}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => void handleSaveDisplayName()}
+                  disabled={updatingDisplayName || !isNameChanged}
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  {updatingDisplayName ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-lg font-medium">{currentName || "User"}</p>
+          )}
         </div>
         {currentProfile?.phone_number && (
           <div className="space-y-1">

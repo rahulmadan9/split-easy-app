@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -13,19 +13,21 @@ import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import Toast from "react-native-toast-message";
 import {
-  User,
   Phone,
   Users,
   Copy,
   Share2,
   LogOut,
   Settings,
-  Shield,
   ChevronRight,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react-native";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
+import { Input } from "@/components/Input";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useCurrentGroup } from "@/hooks/useCurrentGroup";
@@ -34,9 +36,19 @@ import { useGroupMembers } from "@/hooks/useGroupMembers";
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { currentProfile } = useProfiles();
+  const { currentProfile, updateDisplayName, updatingDisplayName } = useProfiles();
   const { currentGroup, currentGroupId } = useCurrentGroup();
   const { members, currentUserRole } = useGroupMembers(currentGroupId);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const currentName = currentProfile?.display_name || "";
+  const isNameChanged = nameDraft.trim() !== currentName;
+
+  useEffect(() => {
+    if (!isEditingName) {
+      setNameDraft(currentName);
+    }
+  }, [currentName, isEditingName]);
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -81,6 +93,37 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleStartEditingName = () => {
+    setNameDraft(currentName);
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditingName = () => {
+    setNameDraft(currentName);
+    setIsEditingName(false);
+  };
+
+  const handleSaveDisplayName = async () => {
+    if (!isNameChanged) {
+      setIsEditingName(false);
+      return;
+    }
+
+    try {
+      await updateDisplayName(nameDraft);
+      Toast.show({
+        type: "success",
+        text1: "Name Updated",
+        text2: "Your display name was saved",
+      });
+      setIsEditingName(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update name";
+      Toast.show({ type: "error", text1: "Error", text2: message });
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["bottom"]}>
       <ScrollView
@@ -98,9 +141,56 @@ export default function ProfileScreen() {
               {currentProfile?.display_name?.charAt(0)?.toUpperCase() || "U"}
             </Text>
           </View>
-          <Text className="text-xl font-bold text-foreground">
-            {currentProfile?.display_name || "User"}
-          </Text>
+          {isEditingName ? (
+            <View className="w-full gap-2">
+              <Input
+                value={nameDraft}
+                onChangeText={setNameDraft}
+                placeholder="Enter your name"
+                maxLength={50}
+                autoFocus
+              />
+              <View className="flex-row gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onPress={handleCancelEditingName}
+                  disabled={updatingDisplayName}
+                >
+                  <View className="flex-row items-center gap-1">
+                    <X size={16} color="#0f172a" />
+                    <Text className="text-foreground font-semibold">Cancel</Text>
+                  </View>
+                </Button>
+                <Button
+                  className="flex-1"
+                  onPress={() => void handleSaveDisplayName()}
+                  disabled={updatingDisplayName || !isNameChanged}
+                >
+                  <View className="flex-row items-center gap-1">
+                    <Check size={16} color="#ffffff" />
+                    <Text className="text-primary-foreground font-semibold">
+                      {updatingDisplayName ? "Saving..." : "Save"}
+                    </Text>
+                  </View>
+                </Button>
+              </View>
+            </View>
+          ) : (
+            <View className="flex-row items-center gap-2">
+              <Text className="text-xl font-bold text-foreground">
+                {currentName || "User"}
+              </Text>
+              <Pressable
+                onPress={handleStartEditingName}
+                className="p-1 rounded-md"
+                accessibilityRole="button"
+                accessibilityLabel="Edit display name"
+              >
+                <Pencil size={16} color="#64748b" />
+              </Pressable>
+            </View>
+          )}
           {currentProfile?.phone_number && (
             <View className="flex-row items-center gap-1 mt-1">
               <Phone size={14} color="#64748b" />

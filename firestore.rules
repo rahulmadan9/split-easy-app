@@ -40,8 +40,10 @@ service cloud.firestore {
 
     // Groups collection
     match /groups/{groupId} {
-      // Read if member
-      allow read: if isGroupMember(groupId);
+      // Get individual group doc if member
+      allow get: if isGroupMember(groupId);
+      // List/query groups if authenticated (needed for invite code lookup)
+      allow list: if isAuthenticated();
 
       // Create if authenticated
       allow create: if isAuthenticated() &&
@@ -76,11 +78,6 @@ service cloud.firestore {
            get(/databases/$(database)/documents/groups/$(groupId)).data.isPersonal == false)
         );
       }
-    }
-
-    // Allow listing groups by invite code (for joining)
-    match /groups/{groupId} {
-      allow list: if isAuthenticated();
     }
 
     // Expenses collection

@@ -161,7 +161,7 @@ export const useGroups = () => {
   );
 
   const joinGroupByCode = useCallback(
-    async (code: string): Promise<string> => {
+    async (code: string): Promise<{ id: string; name: string }> => {
       if (!currentProfile) throw new Error("Not logged in");
 
       const upperCode = code.toUpperCase().trim();
@@ -175,6 +175,7 @@ export const useGroups = () => {
 
       const groupDoc = snapshot.docs[0];
       const groupId = groupDoc.id;
+      const groupName = groupDoc.data().name || "";
 
       // Check if already a member
       const memberDoc = doc(db, "groups", groupId, "members", currentProfile.id);
@@ -194,7 +195,7 @@ export const useGroups = () => {
         joinedAt: serverTimestamp(),
       });
 
-      return groupId;
+      return { id: groupId, name: groupName };
     },
     [currentProfile]
   );

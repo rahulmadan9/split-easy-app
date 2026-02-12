@@ -5,6 +5,33 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 const db = admin.firestore();
+const MAX_BATCH_WRITES = 450;
+
+type UpdateBuilder = (
+  docSnap: FirebaseFirestore.QueryDocumentSnapshot
+) => FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>;
+
+async function updateDocumentsInBatches(
+  docs: FirebaseFirestore.QueryDocumentSnapshot[],
+  buildUpdate: UpdateBuilder
+): Promise<number> {
+  if (docs.length === 0) return 0;
+
+  let updatedCount = 0;
+  for (let index = 0; index < docs.length; index += MAX_BATCH_WRITES) {
+    const chunk = docs.slice(index, index + MAX_BATCH_WRITES);
+    const batch = db.batch();
+
+    chunk.forEach((docSnap) => {
+      batch.update(docSnap.ref, buildUpdate(docSnap));
+    });
+
+    await batch.commit();
+    updatedCount += chunk.length;
+  }
+
+  return updatedCount;
+}
 
 /**
  * Cloud Function: Auto-create user profile when a new user signs up
@@ -52,6 +79,102 @@ export const deleteUserData = functions.auth.user().onDelete(async (user) => {
     throw error;
   }
 });
+
+/**
+ * Cloud Function: Propagate user display name changes to denormalized fields
+ */
+export const onUserDisplayNameUpdated = functions.firestore
+  .document('users/{userId}')
+  .onUpdate(async (change, context) => {
+    const userId = context.params.userId as string;
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    const previousDisplayName =
+      typeof beforeData.displayName === 'string' ? beforeData.displayName : '';
+    const nextDisplayNameRaw =
+      typeof afterData.displayName === 'string' ? afterData.displayName : '';
+    const nextDisplayName = nextDisplayNameRaw.trim();
+
+    if (!nextDisplayName || previousDisplayName === nextDisplayName) {
+      return null;
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    const [
+      membersSnap,
+      groupsSnap,
+      expensesSnap,
+      recurringCreatedSnap,
+      recurringPaidSnap,
+      confirmationsSnap,
+    ] = await Promise.all([
+      db.collectionGroup('members').where('userId', '==', userId).get(),
+      db.collection('groups').where('createdBy', '==', userId).get(),
+      db.collection('expenses').where('paidBy', '==', userId).get(),
+      db.collection('recurringExpenses').where('createdBy', '==', userId).get(),
+      db.collection('recurringExpenses').where('typicallyPaidBy', '==', userId).get(),
+      db.collection('recurringConfirmations').where('confirmedBy', '==', userId).get(),
+    ]);
+
+    const recurringDocMap = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+    recurringCreatedSnap.docs.forEach((docSnap) => recurringDocMap.set(docSnap.id, docSnap));
+    recurringPaidSnap.docs.forEach((docSnap) => recurringDocMap.set(docSnap.id, docSnap));
+    const recurringDocs = Array.from(recurringDocMap.values());
+
+    const [
+      membersUpdated,
+      groupsUpdated,
+      expensesUpdated,
+      recurringUpdated,
+      confirmationsUpdated,
+    ] = await Promise.all([
+      updateDocumentsInBatches(membersSnap.docs, () => ({
+        userName: nextDisplayName,
+      })),
+      updateDocumentsInBatches(groupsSnap.docs, () => ({
+        createdByName: nextDisplayName,
+        updatedAt: now,
+      })),
+      updateDocumentsInBatches(expensesSnap.docs, () => ({
+        paidByName: nextDisplayName,
+        updatedAt: now,
+      })),
+      updateDocumentsInBatches(recurringDocs, (docSnap) => {
+        const data = docSnap.data();
+        const updateData: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = {
+          updatedAt: now,
+        };
+
+        if (data.createdBy === userId) {
+          updateData.createdByName = nextDisplayName;
+        }
+
+        if (data.typicallyPaidBy === userId) {
+          updateData.typicallyPaidByName = nextDisplayName;
+        }
+
+        return updateData;
+      }),
+      updateDocumentsInBatches(confirmationsSnap.docs, () => ({
+        confirmedByName: nextDisplayName,
+      })),
+    ]);
+
+    functions.logger.info('Display name propagated', {
+      userId,
+      previousDisplayName,
+      nextDisplayName,
+      membersUpdated,
+      groupsUpdated,
+      expensesUpdated,
+      recurringUpdated,
+      confirmationsUpdated,
+    });
+
+    return null;
+  });
 
 // ─── Push Notification Helpers ───────────────────────────────────────────────
 
