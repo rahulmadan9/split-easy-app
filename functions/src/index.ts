@@ -296,6 +296,15 @@ export const onMemberJoined = functions.firestore
     const newMemberName = member.userName || 'Someone';
     const newMemberId = member.userId;
 
+    // Sync groupIds on the member's user profile (server-side backup)
+    try {
+      await db.collection('users').doc(newMemberId).update({
+        groupIds: admin.firestore.FieldValue.arrayUnion(groupId),
+      });
+    } catch (err) {
+      functions.logger.error('Failed to sync groupIds for user', { newMemberId, groupId, err });
+    }
+
     // Get group name
     const groupDoc = await db.collection('groups').doc(groupId).get();
     const groupData = groupDoc.data();

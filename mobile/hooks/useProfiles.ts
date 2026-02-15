@@ -11,6 +11,7 @@ export interface Profile {
   phone_number?: string;
   personal_group_id: string;
   current_group_id: string | null;
+  group_ids: string[];
   created_at: string;
 }
 
@@ -38,6 +39,7 @@ export const useProfiles = () => {
             phone_number: data.phoneNumber || undefined,
             personal_group_id: data.personalGroupId || "",
             current_group_id: data.currentGroupId || null,
+            group_ids: Array.isArray(data.groupIds) ? data.groupIds : [],
             created_at:
               data.createdAt instanceof Timestamp
                 ? data.createdAt.toDate().toISOString()

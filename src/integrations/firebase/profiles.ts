@@ -40,6 +40,7 @@ export const createUserProfile = async (user: User): Promise<void> => {
       phoneNumber: user.phoneNumber || '',
       personalGroupId: personalGroupRef.id,
       currentGroupId: personalGroupRef.id,
+      groupIds: [personalGroupRef.id],
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
