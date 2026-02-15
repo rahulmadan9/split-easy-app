@@ -47,7 +47,8 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
         handleClose(false);
       }
     } catch (error) {
-      toast.error("Failed to join group. Check the invite code and try again.");
+      const message = error instanceof Error ? error.message : "Failed to join group. Check the invite code and try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

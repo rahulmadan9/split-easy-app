@@ -6,9 +6,13 @@ import {
   orderBy,
   onSnapshot,
   addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
+import { toast } from "sonner";
 import { db } from "@/integrations/firebase/config";
 import { useAuth } from "./useAuth";
 import { useGroupMembers } from "./useGroupMembers";
@@ -102,6 +106,7 @@ export const useGroupExpenses = (groupId: string | null) => {
       },
       (error) => {
         console.error("Error fetching expenses", error);
+        toast.error("Failed to load expenses. Check your connection.");
         setExpenses([]);
         setLoading(false);
       }
@@ -158,9 +163,60 @@ export const useGroupExpenses = (groupId: string | null) => {
     [user, groupId, members]
   );
 
+  const deleteExpense = useCallback(
+    async (expenseId: string) => {
+      await deleteDoc(doc(db, "expenses", expenseId));
+    },
+    []
+  );
+
+  const updateExpense = useCallback(
+    async (expenseId: string, expense: Partial<ExpenseInsert>) => {
+      if (!user || !groupId) throw new Error("Not logged in or no group selected");
+
+      const updateData: Record<string, any> = { updatedAt: serverTimestamp() };
+
+      if (expense.description !== undefined) updateData.description = expense.description;
+      if (expense.amount !== undefined) updateData.amount = Number(expense.amount);
+      if (expense.paid_by !== undefined) {
+        updateData.paidBy = expense.paid_by;
+        const paidByMember = members.find((m) => m.userId === expense.paid_by);
+        updateData.paidByName = paidByMember?.userName || "";
+      }
+      if (expense.split_type !== undefined) updateData.splitType = expense.split_type;
+      if (expense.participants !== undefined) updateData.participants = expense.participants;
+      if (expense.category !== undefined) updateData.category = expense.category;
+      if (expense.expense_date !== undefined) updateData.expenseDate = expense.expense_date;
+      if (expense.notes !== undefined) updateData.notes = expense.notes;
+
+      if (expense.description && expense.amount) {
+        const dataToValidate = {
+          group_id: groupId,
+          description: expense.description,
+          amount: Number(expense.amount),
+          paid_by: expense.paid_by || "",
+          split_type: expense.split_type || "equal",
+          participants: expense.participants || [],
+          category: expense.category || "other",
+          expense_date: expense.expense_date || new Date().toISOString().split("T")[0],
+          notes: expense.notes || null,
+          is_payment: false,
+          is_settlement: false,
+        };
+        const result = validateExpense(dataToValidate);
+        if (result.success === false) throw new Error(result.error);
+      }
+
+      await updateDoc(doc(db, "expenses", expenseId), updateData);
+    },
+    [user, groupId, members]
+  );
+
   return {
     expenses,
     loading,
     addExpense,
+    deleteExpense,
+    updateExpense,
   };
 };

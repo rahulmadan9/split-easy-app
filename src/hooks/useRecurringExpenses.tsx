@@ -17,6 +17,7 @@ import { useAuth } from "./useAuth";
 import { useProfiles } from "./useProfiles";
 import { useGroupMembers } from "./useGroupMembers";
 import { validateRecurringConfirm } from "@/lib/validation";
+import { toast } from "sonner";
 import type { SplitType, ExpenseCategory, ExpenseParticipant, RecurringExpenseType } from "@/integrations/firebase/types";
 
 export interface RecurringExpense {
@@ -140,6 +141,7 @@ export const useRecurringExpenses = (groupId: string | null) => {
       },
       (error) => {
         console.error("Error fetching recurring expenses", error);
+        toast.error("Failed to load recurring expenses.");
         setRecurringExpenses([]);
         setLoading(false);
       }
@@ -168,6 +170,7 @@ export const useRecurringExpenses = (groupId: string | null) => {
       },
       (error) => {
         console.error("Error fetching recurring confirmations", error);
+        toast.error("Failed to load recurring confirmations.");
         setConfirmations([]);
       }
     );

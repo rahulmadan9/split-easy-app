@@ -18,6 +18,7 @@ import { db } from "@/integrations/firebase/config";
 import { useAuth } from "./useAuth";
 import { useProfiles } from "./useProfiles";
 import { validateGroup } from "@/lib/validation";
+import { toast } from "sonner";
 import type { GroupRole } from "@/integrations/firebase/types";
 
 export interface Group {
@@ -109,6 +110,7 @@ export const useGroups = () => {
       },
       (error) => {
         console.error("Error fetching groups", error);
+        toast.error("Failed to load groups.");
         setLoading(false);
       }
     );

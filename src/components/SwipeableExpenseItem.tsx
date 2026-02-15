@@ -9,6 +9,7 @@ interface SwipeableExpenseItemProps {
   expense: Expense;
   isPaidByMe: boolean;
   onDelete: (id: string) => void;
+  onTap?: (expense: Expense) => void;
   formatAmount: (num: number) => string;
 }
 
@@ -26,6 +27,7 @@ const SwipeableExpenseItem = ({
   expense,
   isPaidByMe,
   onDelete,
+  onTap,
   formatAmount,
 }: SwipeableExpenseItemProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -34,10 +36,28 @@ const SwipeableExpenseItem = ({
   const deleteOpacity = useTransform(x, [-100, -60], [1, 0]);
   const deleteScale = useTransform(x, [-100, -60], [1, 0.8]);
 
+  const hasDragged = useRef(false);
+
+  const handleDragStart = () => {
+    hasDragged.current = false;
+  };
+
+  const handleDrag = (_: any, info: PanInfo) => {
+    if (Math.abs(info.offset.x) > 10) {
+      hasDragged.current = true;
+    }
+  };
+
   const handleDragEnd = (_: any, info: PanInfo) => {
     if (info.offset.x < -80) {
       setIsDeleting(true);
       onDelete(expense.id);
+    }
+  };
+
+  const handleTap = () => {
+    if (!hasDragged.current && onTap) {
+      onTap(expense);
     }
   };
 
@@ -69,9 +89,12 @@ const SwipeableExpenseItem = ({
         drag="x"
         dragConstraints={{ left: -100, right: 0 }}
         dragElastic={0.1}
+        onDragStart={handleDragStart}
+        onDrag={handleDrag}
         onDragEnd={handleDragEnd}
+        onClick={handleTap}
         style={{ x }}
-        className="relative bg-card"
+        className="relative bg-card cursor-pointer"
       >
         <div className="flex items-center justify-between p-4 min-h-[72px]">
           <div className="flex-1 min-w-0 pr-4">

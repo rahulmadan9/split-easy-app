@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface GroupManagementProps {
   groupId: string;
@@ -34,7 +35,7 @@ export function GroupManagement({ groupId }: GroupManagementProps) {
   const handleCopyCode = async () => {
     if (!currentGroup?.inviteCode) return;
     try {
-      await navigator.clipboard.writeText(currentGroup.inviteCode);
+      await copyToClipboard(currentGroup.inviteCode);
       setCopied(true);
       toast.success("Invite code copied!");
       setTimeout(() => setCopied(false), 2000);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGroups } from "@/hooks/useGroups";
+import { useCurrentGroup } from "@/hooks/useCurrentGroup";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check, Users } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -20,6 +22,7 @@ interface CreateGroupDialogProps {
 
 export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps) {
   const { createGroup } = useGroups();
+  const { setCurrentGroup } = useCurrentGroup();
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -37,6 +40,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
     try {
       const result = await createGroup(trimmed);
       if (result && result.inviteCode) {
+        setCurrentGroup(result.id);
         setInviteCode(result.inviteCode);
         toast.success("Group created successfully!");
       }
@@ -50,7 +54,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
   const handleCopyCode = async () => {
     if (!inviteCode) return;
     try {
-      await navigator.clipboard.writeText(inviteCode);
+      await copyToClipboard(inviteCode);
       setCopied(true);
       toast.success("Invite code copied!");
       setTimeout(() => setCopied(false), 2000);

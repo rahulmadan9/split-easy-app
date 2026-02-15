@@ -2,9 +2,8 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { useGroupExpenses, Expense } from "@/hooks/useGroupExpenses";
+import { useGroupMembers } from "@/hooks/useGroupMembers";
 import { useProfiles } from "@/hooks/useProfiles";
-import { doc, deleteDoc } from "firebase/firestore";
-import { db } from "@/integrations/firebase/config";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MonthSelector from "./MonthSelector";
@@ -12,19 +11,22 @@ import MonthSummary from "./MonthSummary";
 import CategoryBreakdown from "./CategoryBreakdown";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
 import SwipeableExpenseItem from "./SwipeableExpenseItem";
+import EditExpenseDialog from "./EditExpenseDialog";
 
 interface ExpensesViewProps {
   groupId: string | null;
 }
 
 const ExpensesView = ({ groupId }: ExpensesViewProps) => {
-  const { expenses, loading } = useGroupExpenses(groupId);
+  const { expenses, loading, deleteExpense, updateExpense } = useGroupExpenses(groupId);
+  const { members } = useGroupMembers(groupId);
   const { currentProfile } = useProfiles();
 
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [activeTab, setActiveTab] = useState("list");
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const formatAmount = (num: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -50,7 +52,7 @@ const ExpensesView = ({ groupId }: ExpensesViewProps) => {
     setDeletingExpense(null);
 
     try {
-      await deleteDoc(doc(db, "expenses", deletingExpense.id));
+      await deleteExpense(deletingExpense.id);
       toast.success("Expense deleted");
     } catch (error: any) {
       toast.error("Failed to delete expense");
@@ -152,6 +154,7 @@ const ExpensesView = ({ groupId }: ExpensesViewProps) => {
                           expense={expense}
                           isPaidByMe={isPaidByMe}
                           onDelete={handleSwipeDelete}
+                          onTap={(e) => setEditingExpense(e)}
                           formatAmount={formatAmount}
                         />
                       </motion.div>
@@ -188,6 +191,20 @@ const ExpensesView = ({ groupId }: ExpensesViewProps) => {
         onOpenChange={(open) => !open && setDeletingExpense(null)}
         onConfirm={confirmDelete}
       />
+
+      {editingExpense && (
+        <EditExpenseDialog
+          open={!!editingExpense}
+          onOpenChange={(open) => !open && setEditingExpense(null)}
+          expense={editingExpense}
+          members={members}
+          onSave={async (data) => {
+            await updateExpense(editingExpense.id, data);
+            toast.success("Expense updated");
+            setEditingExpense(null);
+          }}
+        />
+      )}
     </motion.div>
   );
 };
