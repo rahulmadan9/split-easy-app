@@ -1,24 +1,25 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, createContext, useContext, type ReactNode } from "react";
 import {
   collection,
   collectionGroup,
   query,
   where,
-  onSnapshot,
   addDoc,
   setDoc,
   deleteDoc,
   updateDoc,
   getDocs,
+  getDoc,
   doc,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/integrations/firebase/config";
 import { useAuth } from "./useAuth";
 import { useProfiles } from "./useProfiles";
 import { validateGroup } from "@/lib/validation";
-import { toast } from "sonner";
 import type { GroupRole } from "@/integrations/firebase/types";
 
 export interface Group {
@@ -40,83 +41,111 @@ function generateInviteCode(): string {
   return code;
 }
 
-export const useGroups = () => {
+interface GroupsContextValue {
+  groups: Group[];
+  loading: boolean;
+  createGroup: (name: string) => Promise<{ id: string; inviteCode: string }>;
+  joinGroupByCode: (code: string) => Promise<{ id: string; name: string }>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  updateGroupName: (groupId: string, name: string) => Promise<void>;
+}
+
+const GroupsContext = createContext<GroupsContextValue | null>(null);
+
+export const GroupsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const { currentProfile } = useProfiles();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Listen to user's group memberships via collection group query
+  // Load groups from currentProfile.group_ids (populated by useProfiles onSnapshot)
   useEffect(() => {
-    if (!user) {
-      setGroups([]);
-      setLoading(false);
+    if (!user || !currentProfile) {
+      if (!user) {
+        setGroups([]);
+        setLoading(false);
+      }
       return;
     }
 
-    const membersQuery = query(
-      collectionGroup(db, "members"),
-      where("userId", "==", user.uid)
-    );
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(
-      membersQuery,
-      async (snapshot) => {
-        const groupIds = snapshot.docs.map((d) => d.ref.parent.parent?.id).filter(Boolean) as string[];
+    const fetchGroups = async (groupIds: string[]) => {
+      // Migration: if groupIds is empty but user has a personal group,
+      // try the collection group query as a one-time backfill
+      if (groupIds.length === 0 && currentProfile.personal_group_id) {
+        try {
+          const membersQuery = query(
+            collectionGroup(db, "members"),
+            where("userId", "==", user.uid)
+          );
+          const snapshot = await getDocs(membersQuery);
+          const discoveredIds = snapshot.docs
+            .map((d) => d.ref.parent.parent?.id)
+            .filter(Boolean) as string[];
 
-        if (groupIds.length === 0) {
-          setGroups([]);
-          setLoading(false);
-          return;
+          if (discoveredIds.length > 0) {
+            // Backfill groupIds on user profile
+            await updateDoc(doc(db, "users", user.uid), {
+              groupIds: discoveredIds,
+            });
+            // The profile onSnapshot will fire and re-trigger this effect
+            return;
+          }
+        } catch (err) {
+          console.warn("Migration collection group query failed, falling back to personal group", err);
         }
 
-        // Listen to each group doc
-        const groupPromises = groupIds.map(
-          (gid) =>
-            new Promise<Group | null>((resolve) => {
-              const unsub = onSnapshot(doc(db, "groups", gid), (docSnap) => {
-                unsub(); // We only need one read
-                if (docSnap.exists()) {
-                  const data = docSnap.data();
-                  resolve({
-                    id: docSnap.id,
-                    name: data.name || "",
-                    inviteCode: data.inviteCode || "",
-                    createdBy: data.createdBy || "",
-                    createdByName: data.createdByName || "",
-                    isPersonal: data.isPersonal === true,
-                    createdAt:
-                      data.createdAt instanceof Timestamp
-                        ? data.createdAt.toDate().toISOString()
-                        : new Date().toISOString(),
-                  });
-                } else {
-                  resolve(null);
-                }
-              });
-            })
-        );
-
-        const results = await Promise.all(groupPromises);
-        const validGroups = results.filter(Boolean) as Group[];
-        // Personal groups first, then alphabetical
-        validGroups.sort((a, b) => {
-          if (a.isPersonal && !b.isPersonal) return -1;
-          if (!a.isPersonal && b.isPersonal) return 1;
-          return a.name.localeCompare(b.name);
-        });
-        setGroups(validGroups);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching groups", error);
-        toast.error("Failed to load groups.");
-        setLoading(false);
+        // Fallback: at least load the personal group
+        groupIds = [currentProfile.personal_group_id];
       }
-    );
 
-    return () => unsubscribe();
-  }, [user]);
+      // Fetch each group doc individually
+      const results = await Promise.all(
+        groupIds.map(async (gid): Promise<Group | null> => {
+          try {
+            const docSnap = await getDoc(doc(db, "groups", gid));
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              return {
+                id: docSnap.id,
+                name: data.name || "",
+                inviteCode: data.inviteCode || "",
+                createdBy: data.createdBy || "",
+                createdByName: data.createdByName || "",
+                isPersonal: data.isPersonal === true,
+                createdAt:
+                  data.createdAt instanceof Timestamp
+                    ? data.createdAt.toDate().toISOString()
+                    : new Date().toISOString(),
+              };
+            }
+            return null;
+          } catch (err) {
+            console.error(`Error fetching group ${gid}`, err);
+            return null;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      const validGroups = results.filter(Boolean) as Group[];
+      validGroups.sort((a, b) => {
+        if (a.isPersonal && !b.isPersonal) return -1;
+        if (!a.isPersonal && b.isPersonal) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      setGroups(validGroups);
+      setLoading(false);
+    };
+
+    fetchGroups(currentProfile.group_ids);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, currentProfile]);
 
   const createGroup = useCallback(
     async (name: string): Promise<{ id: string; inviteCode: string }> => {
@@ -149,13 +178,18 @@ export const useGroups = () => {
         updatedAt: serverTimestamp(),
       });
 
-      // Add creator as admin
-      await setDoc(doc(db, "groups", groupRef.id, "members", currentProfile.id), {
-        userId: currentProfile.id,
-        userName: currentProfile.display_name,
-        role: "admin" as GroupRole,
-        joinedAt: serverTimestamp(),
-      });
+      // Add creator as admin and update groupIds on user profile
+      await Promise.all([
+        setDoc(doc(db, "groups", groupRef.id, "members", currentProfile.id), {
+          userId: currentProfile.id,
+          userName: currentProfile.display_name,
+          role: "admin" as GroupRole,
+          joinedAt: serverTimestamp(),
+        }),
+        updateDoc(doc(db, "users", currentProfile.id), {
+          groupIds: arrayUnion(groupRef.id),
+        }),
+      ]);
 
       return { id: groupRef.id, inviteCode };
     },
@@ -189,13 +223,18 @@ export const useGroups = () => {
       );
       if (!memberSnap.empty) throw new Error("You're already a member of this group");
 
-      // Join as member
-      await setDoc(memberDoc, {
-        userId: currentProfile.id,
-        userName: currentProfile.display_name,
-        role: "member" as GroupRole,
-        joinedAt: serverTimestamp(),
-      });
+      // Join as member and update groupIds on user profile
+      await Promise.all([
+        setDoc(memberDoc, {
+          userId: currentProfile.id,
+          userName: currentProfile.display_name,
+          role: "member" as GroupRole,
+          joinedAt: serverTimestamp(),
+        }),
+        updateDoc(doc(db, "users", currentProfile.id), {
+          groupIds: arrayUnion(groupId),
+        }),
+      ]);
 
       return { id: groupId, name: groupName };
     },
@@ -205,7 +244,12 @@ export const useGroups = () => {
   const leaveGroup = useCallback(
     async (groupId: string) => {
       if (!currentProfile) throw new Error("Not logged in");
-      await deleteDoc(doc(db, "groups", groupId, "members", currentProfile.id));
+      await Promise.all([
+        deleteDoc(doc(db, "groups", groupId, "members", currentProfile.id)),
+        updateDoc(doc(db, "users", currentProfile.id), {
+          groupIds: arrayRemove(groupId),
+        }),
+      ]);
     },
     [currentProfile]
   );
@@ -222,12 +266,19 @@ export const useGroups = () => {
     []
   );
 
-  return {
-    groups,
-    loading,
-    createGroup,
-    joinGroupByCode,
-    leaveGroup,
-    updateGroupName,
-  };
+  return (
+    <GroupsContext.Provider
+      value={{ groups, loading, createGroup, joinGroupByCode, leaveGroup, updateGroupName }}
+    >
+      {children}
+    </GroupsContext.Provider>
+  );
+};
+
+export const useGroups = (): GroupsContextValue => {
+  const context = useContext(GroupsContext);
+  if (!context) {
+    throw new Error("useGroups must be used within a GroupsProvider");
+  }
+  return context;
 };

@@ -8,6 +8,7 @@ import Toast from "react-native-toast-message";
 import { toastConfig } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { GroupsProvider } from "@/hooks/useGroups";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -50,7 +51,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthGuard>
-          <Slot />
+          <GroupsProvider>
+            <Slot />
+          </GroupsProvider>
         </AuthGuard>
         <Toast config={toastConfig} />
       </SafeAreaProvider>

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 const ProfileView = () => {
   const { signOut, user } = useAuth();
   const { currentProfile, updateDisplayName, updatingDisplayName } = useProfiles();
-  const { groups } = useGroups();
+  const { groups, loading } = useGroups();
   const [managingGroupId, setManagingGroupId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
@@ -152,7 +152,11 @@ const ProfileView = () => {
           My Groups ({nonPersonalGroups.length})
         </h3>
 
-        {nonPersonalGroups.length === 0 ? (
+        {loading ? (
+          <div className="rounded-xl border border-border/50 bg-card/50 p-6 flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">Loading groups...</p>
+          </div>
+        ) : nonPersonalGroups.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/50 bg-card/50 p-6 text-center">
             <p className="text-sm text-muted-foreground">
               No groups yet. Create or join one below.
