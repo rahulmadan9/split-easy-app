@@ -9,30 +9,30 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#6366f1",
+          DEFAULT: "#E8714A",
           foreground: "#ffffff",
         },
         destructive: {
-          DEFAULT: "#ef4444",
+          DEFAULT: "#D9534F",
           foreground: "#ffffff",
         },
         muted: {
-          DEFAULT: "#f1f5f9",
-          foreground: "#64748b",
+          DEFAULT: "#F0EDE9",
+          foreground: "#7A7268",
         },
         accent: {
-          DEFAULT: "#f1f5f9",
-          foreground: "#0f172a",
+          DEFAULT: "#FBEEE8",
+          foreground: "#A14520",
         },
         card: {
           DEFAULT: "#ffffff",
-          foreground: "#0f172a",
+          foreground: "#2A2420",
         },
-        border: "#e2e8f0",
-        background: "#f8fafc",
-        foreground: "#0f172a",
-        positive: "#22c55e",
-        negative: "#ef4444",
+        border: "#E5DFD8",
+        background: "#FAF7F4",
+        foreground: "#2A2420",
+        positive: "#3DA368",
+        negative: "#D9534F",
       },
     },
   },
