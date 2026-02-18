@@ -71,6 +71,7 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
         throw new Error('Unable to sign in with OTP');
       }
 
+      moduleConfirmation = null;
       return credential.user;
     } catch (error: any) {
       console.error('Phone sign in error:', error);

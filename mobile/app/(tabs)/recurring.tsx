@@ -229,64 +229,46 @@ export default function RecurringScreen() {
         {/* Summary Cards */}
         <Animated.View
           entering={FadeInDown.delay(100).duration(500)}
-          className="px-4 mt-4 flex-row gap-2"
+          className="px-4 mt-4 gap-2"
         >
-          <Card className="flex-1 px-2 py-3 items-center overflow-hidden">
-            <Text
-              className="text-xs text-muted-foreground mb-1 w-full text-center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
-              Total Fixed
-            </Text>
-            <Text
-              className="text-sm font-bold text-foreground w-full text-center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.6}
-            >
+          {/* Row 1: Total Fixed — full width */}
+          <Card className="p-4 flex-row items-center justify-between">
+            <Text className="text-sm text-muted-foreground">Total Fixed</Text>
+            <Text className="text-lg font-bold text-foreground">
               {formatINR(summary.totalFixed)}
             </Text>
           </Card>
 
-          <Card className="flex-1 px-2 py-3 items-center overflow-hidden">
-            <Text
-              className="text-xs text-muted-foreground mb-1 w-full text-center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
-              Paid So Far
-            </Text>
-            <Text
-              className="text-sm font-bold text-positive w-full text-center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.6}
-            >
-              {formatINR(summary.paidSoFar)}
-            </Text>
-          </Card>
+          {/* Row 2: Paid So Far + Remaining side by side */}
+          <View className="flex-row gap-2">
+            <Card className="flex-1 p-4 items-center">
+              <Text className="text-xs text-muted-foreground mb-1">
+                Paid So Far
+              </Text>
+              <Text
+                className="text-base font-bold text-positive"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
+                {formatINR(summary.paidSoFar)}
+              </Text>
+            </Card>
 
-          <Card className="flex-1 px-2 py-3 items-center overflow-hidden">
-            <Text
-              className="text-xs text-muted-foreground mb-1 w-full text-center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
-              Remaining
-            </Text>
-            <Text
-              className="text-sm font-bold text-negative w-full text-center"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.6}
-            >
-              {formatINR(summary.remaining)}
-            </Text>
-          </Card>
+            <Card className="flex-1 p-4 items-center">
+              <Text className="text-xs text-muted-foreground mb-1">
+                Remaining
+              </Text>
+              <Text
+                className="text-base font-bold text-negative"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
+                {formatINR(summary.remaining)}
+              </Text>
+            </Card>
+          </View>
         </Animated.View>
 
         {/* Pending Items */}

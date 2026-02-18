@@ -9,26 +9,28 @@ const RecurringSummaryCards = ({ summary, formatAmount }: RecurringSummaryCardsP
   const { totalFixed, paidSoFar, remaining } = summary;
 
   return (
-    <div className="grid grid-cols-3 gap-3">
-      <div className="bg-card border border-border/50 rounded-lg p-4">
-        <p className="text-xs text-muted-foreground mb-1">Total Fixed</p>
+    <div className="space-y-3">
+      <div className="bg-card border border-border/50 rounded-lg px-4 py-3 flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Total Recurring</p>
         <p className="text-lg font-bold tabular-nums">{formatAmount(totalFixed)}</p>
       </div>
-      <div className="bg-card border border-border/50 rounded-lg p-4">
-        <p className="text-xs text-muted-foreground mb-1">Paid So Far</p>
-        <p className="text-lg font-bold tabular-nums text-positive">
-          {formatAmount(paidSoFar)}
-        </p>
-      </div>
-      <div className="bg-card border border-border/50 rounded-lg p-4">
-        <p className="text-xs text-muted-foreground mb-1">Remaining</p>
-        <p
-          className={`text-lg font-bold tabular-nums ${
-            remaining === 0 ? "text-positive" : "text-muted-foreground"
-          }`}
-        >
-          {formatAmount(remaining)}
-        </p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-card border border-border/50 rounded-lg p-4">
+          <p className="text-xs text-muted-foreground mb-1">Paid So Far</p>
+          <p className="text-lg font-bold tabular-nums text-positive">
+            {formatAmount(paidSoFar)}
+          </p>
+        </div>
+        <div className="bg-card border border-border/50 rounded-lg p-4">
+          <p className="text-xs text-muted-foreground mb-1">Remaining</p>
+          <p
+            className={`text-lg font-bold tabular-nums ${
+              remaining === 0 ? "text-positive" : "text-muted-foreground"
+            }`}
+          >
+            {formatAmount(remaining)}
+          </p>
+        </div>
       </div>
     </div>
   );

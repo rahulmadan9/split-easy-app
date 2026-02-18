@@ -101,6 +101,8 @@ export default function SignInScreen() {
       }
 
       await createUserProfile(user);
+      _persistedStep = "initial";
+      _persistedPhone = "";
       Toast.show({
         type: "success",
         text1: "Welcome back!",
@@ -132,6 +134,8 @@ export default function SignInScreen() {
         await user.updateProfile({ displayName: displayName.trim() });
         await user.reload();
         await createUserProfile(user);
+        _persistedStep = "initial";
+        _persistedPhone = "";
         Toast.show({
           type: "success",
           text1: "Welcome!",
