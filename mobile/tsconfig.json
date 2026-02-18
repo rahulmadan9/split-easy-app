@@ -5,9 +5,17 @@
     "noImplicitAny": false,
     "strictNullChecks": false,
     "paths": {
-      "@/*": ["./*"],
-      "@shared/*": ["../shared/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@shared/*": [
+        "../shared/*"
+      ]
     }
   },
-  "include": [".", "../shared"]
+  "include": [
+    ".",
+    "../shared",
+    "nativewind-env.d.ts"
+  ]
 }

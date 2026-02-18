@@ -9,7 +9,7 @@ import {
   Receipt,
   User,
 } from "lucide-react-native";
-import { GroupSelector } from "@/components/GroupSelector";
+import { colors } from "@/lib/colors";
 
 export default function TabLayout() {
   const router = useRouter();
@@ -18,8 +18,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerStyle: {
-          backgroundColor: "#ffffff",
-          shadowColor: "#e2e8f0",
+          backgroundColor: colors.card,
+          shadowColor: colors.border,
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 1,
           shadowRadius: 0,
@@ -28,7 +28,7 @@ export default function TabLayout() {
         headerTitleStyle: {
           fontWeight: "700",
           fontSize: 18,
-          color: "#0f172a",
+          color: colors.foreground,
         },
         headerRight: () => (
           <Pressable
@@ -36,15 +36,15 @@ export default function TabLayout() {
             className="mr-4"
           >
             <View className="w-9 h-9 bg-primary rounded-full items-center justify-center">
-              <User size={18} color="#ffffff" />
+              <User size={18} color={colors.primaryForeground} />
             </View>
           </Pressable>
         ),
-        tabBarActiveTintColor: "#6366f1",
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: "#94a3b8",
         tabBarStyle: {
-          backgroundColor: "#ffffff",
-          borderTopColor: "#e2e8f0",
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
           paddingBottom: 4,
           paddingTop: 4,
@@ -82,7 +82,7 @@ export default function TabLayout() {
         options={{
           title: "Add",
           tabBarIcon: ({ color, size }) => (
-            <PlusCircle size={size + 4} color="#6366f1" />
+            <PlusCircle size={size + 4} color={colors.primary} />
           ),
           tabBarLabel: ({ focused }) => (
             <Text

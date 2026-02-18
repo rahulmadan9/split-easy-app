@@ -16,18 +16,22 @@ import {
   Receipt,
   ArrowRightLeft,
   TrendingUp,
+  Download,
 } from "lucide-react-native";
 import { Card } from "@/components/Card";
 import { MonthSelector } from "@/components/MonthSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/Badge";
+import { EditExpenseModal } from "@/components/EditExpenseModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentGroup } from "@/hooks/useCurrentGroup";
 import { useGroupExpenses, type Expense } from "@/hooks/useGroupExpenses";
 import { useGroupMembers } from "@/hooks/useGroupMembers";
-import { categories } from "../../shared/constants/categories";
+import { categories } from "../../../shared/constants/categories";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { colors } from "@/lib/colors";
+import { exportExpensesToCsv } from "@/lib/csvExport";
 
 const formatINR = (amount: number): string =>
   new Intl.NumberFormat("en-IN", {
@@ -40,12 +44,13 @@ const formatINR = (amount: number): string =>
 export default function ExpensesScreen() {
   const { user } = useAuth();
   const { currentGroupId } = useCurrentGroup();
-  const { expenses, loading } = useGroupExpenses(currentGroupId);
+  const { expenses, loading, updateExpense } = useGroupExpenses(currentGroupId);
   const { members } = useGroupMembers(currentGroupId);
 
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter((e) => e.expense_date.startsWith(selectedMonth));
@@ -126,6 +131,15 @@ export default function ExpensesScreen() {
     []
   );
 
+  const handleExport = useCallback(async () => {
+    try {
+      await exportExpensesToCsv(filteredExpenses, selectedMonth);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Export failed";
+      Toast.show({ type: "error", text1: "Export Error", text2: message });
+    }
+  }, [filteredExpenses, selectedMonth]);
+
   const renderRightActions = useCallback(
     (expense: Expense) => (
       <Pressable
@@ -149,52 +163,54 @@ export default function ExpensesScreen() {
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300)}>
           <Swipeable renderRightActions={() => renderRightActions(item)}>
-            <View className="bg-card border border-border rounded-2xl p-4 mx-4 mb-2">
-              <View className="flex-row items-start justify-between">
-                <View className="flex-row items-center gap-3 flex-1">
-                  <View
-                    className={`w-10 h-10 rounded-full items-center justify-center ${
-                      isSettlement ? "bg-green-100" : "bg-primary/10"
-                    }`}
-                  >
-                    {isSettlement ? (
-                      <ArrowRightLeft size={18} color="#22c55e" />
-                    ) : (
-                      <Receipt size={18} color="#6366f1" />
-                    )}
-                  </View>
-                  <View className="flex-1">
-                    <Text
-                      className="text-base font-semibold text-foreground"
-                      numberOfLines={1}
+            <Pressable onPress={() => setEditingExpense(item)}>
+              <View className="bg-card border border-border rounded-2xl p-4 mx-4 mb-2">
+                <View className="flex-row items-start justify-between">
+                  <View className="flex-row items-center gap-3 flex-1">
+                    <View
+                      className={`w-10 h-10 rounded-full items-center justify-center ${
+                        isSettlement ? "bg-green-100" : "bg-primary/10"
+                      }`}
                     >
-                      {item.description}
-                    </Text>
-                    <View className="flex-row items-center gap-2 mt-0.5">
-                      <Text className="text-sm text-muted-foreground">
-                        {paidByYou ? "You" : item.paid_by_name}
-                      </Text>
-                      {!isSettlement && (
-                        <Badge variant="outline">{categoryLabel}</Badge>
+                      {isSettlement ? (
+                        <ArrowRightLeft size={18} color={colors.positive} />
+                      ) : (
+                        <Receipt size={18} color={colors.primary} />
                       )}
                     </View>
-                    <Text className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(item.expense_date).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </Text>
+                    <View className="flex-1">
+                      <Text
+                        className="text-base font-semibold text-foreground"
+                        numberOfLines={1}
+                      >
+                        {item.description}
+                      </Text>
+                      <View className="flex-row items-center gap-2 mt-0.5">
+                        <Text className="text-sm text-muted-foreground">
+                          {paidByYou ? "You" : item.paid_by_name}
+                        </Text>
+                        {!isSettlement && (
+                          <Badge variant="outline">{categoryLabel}</Badge>
+                        )}
+                      </View>
+                      <Text className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(item.expense_date).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </Text>
+                    </View>
                   </View>
+                  <Text
+                    className={`text-lg font-bold ${
+                      paidByYou ? "text-positive" : "text-foreground"
+                    }`}
+                  >
+                    {formatINR(item.amount)}
+                  </Text>
                 </View>
-                <Text
-                  className={`text-lg font-bold ${
-                    paidByYou ? "text-positive" : "text-foreground"
-                  }`}
-                >
-                  {formatINR(item.amount)}
-                </Text>
               </View>
-            </View>
+            </Pressable>
           </Swipeable>
         </Animated.View>
       );
@@ -267,20 +283,25 @@ export default function ExpensesScreen() {
         )}
 
         {/* Expenses Header */}
-        <View className="px-4 mb-2">
+        <View className="px-4 mb-2 flex-row items-center justify-between">
           <Text className="text-base font-semibold text-foreground">
             Transactions ({filteredExpenses.length})
           </Text>
+          {filteredExpenses.length > 0 && (
+            <Pressable onPress={handleExport} className="p-2">
+              <Download size={20} color={colors.primary} />
+            </Pressable>
+          )}
         </View>
       </>
     ),
-    [monthSummary, categoryBreakdown, filteredExpenses.length]
+    [monthSummary, categoryBreakdown, filteredExpenses.length, handleExport]
   );
 
   if (loading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -314,6 +335,15 @@ export default function ExpensesScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <EditExpenseModal
+        visible={!!editingExpense}
+        expense={editingExpense}
+        members={members}
+        currentUserId={user?.uid}
+        onSave={updateExpense}
+        onClose={() => setEditingExpense(null)}
+      />
     </SafeAreaView>
   );
 }

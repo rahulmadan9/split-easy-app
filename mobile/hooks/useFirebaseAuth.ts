@@ -1,36 +1,25 @@
 import { useState, useEffect } from 'react';
-import {
-  User,
-  onAuthStateChanged,
-  signOut as firebaseSignOut,
-  updateProfile,
-  AuthError,
-  PhoneAuthProvider,
-  signInWithCredential,
-  GoogleAuthProvider,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 interface UseFirebaseAuthReturn {
-  user: User | null;
+  user: FirebaseAuthTypes.User | null;
   loading: boolean;
-  signInWithPhone: (verificationId: string, code: string, displayName?: string) => Promise<void>;
+  sendPhoneOtp: (phoneNumber: string) => Promise<void>;
+  verifyPhoneOtp: (code: string, displayName?: string) => Promise<FirebaseAuthTypes.User>;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-/**
- * Custom hook for Firebase Authentication on React Native.
- * Phone auth uses the native Firebase SDK (no RecaptchaVerifier needed).
- * Google Sign-In uses credential-based auth.
- */
+// Module-level variable so confirmation survives component remounts caused by
+// Firebase's reCAPTCHA URL scheme triggering Expo Router navigation.
+let moduleConfirmation: FirebaseAuthTypes.ConfirmationResult | null = null;
+
 export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
+    const unsubscribe = auth().onAuthStateChanged(
       (currentUser) => {
         setUser(currentUser);
         setLoading(false);
@@ -44,60 +33,71 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
     return () => unsubscribe();
   }, []);
 
-  /**
-   * Complete phone auth with verification ID and OTP code.
-   * The verificationId comes from the native phone auth flow.
-   */
-  const signInWithPhone = async (
-    verificationId: string,
-    code: string,
-    displayName?: string
-  ): Promise<void> => {
+  const sendPhoneOtp = async (phoneNumber: string): Promise<void> => {
     try {
-      const credential = PhoneAuthProvider.credential(verificationId, code);
-      const result = await signInWithCredential(auth, credential);
+      const result = await auth().signInWithPhoneNumber(phoneNumber);
+      moduleConfirmation = result;
+    } catch (error: any) {
+      console.error('Send OTP error:', error);
 
-      if (result.user && displayName) {
-        await updateProfile(result.user, { displayName });
-        await result.user.reload();
-        setUser(auth.currentUser);
-      }
-    } catch (error) {
-      const authError = error as AuthError;
-      console.error('Phone sign in error:', authError);
-
-      switch (authError.code) {
-        case 'auth/invalid-verification-code':
-          throw new Error('Invalid OTP. Please check and try again');
-        case 'auth/code-expired':
-          throw new Error('OTP has expired. Please request a new one');
+      switch (error?.code) {
         case 'auth/invalid-phone-number':
           throw new Error('Invalid phone number format');
         case 'auth/too-many-requests':
           throw new Error('Too many requests. Please try again later');
+        default:
+          throw new Error('Failed to send OTP. Please try again');
+      }
+    }
+  };
+
+  const verifyPhoneOtp = async (
+    code: string,
+    displayName?: string
+  ): Promise<FirebaseAuthTypes.User> => {
+    if (!moduleConfirmation) {
+      throw new Error('Please request OTP before verifying');
+    }
+
+    try {
+      const credential = await moduleConfirmation.confirm(code);
+
+      if (credential.user && displayName) {
+        await credential.user.updateProfile({ displayName });
+        await credential.user.reload();
+      }
+
+      if (!credential.user) {
+        throw new Error('Unable to sign in with OTP');
+      }
+
+      return credential.user;
+    } catch (error: any) {
+      console.error('Phone sign in error:', error);
+
+      switch (error?.code) {
+        case 'auth/invalid-verification-code':
+          throw new Error('Invalid OTP. Please check and try again');
+        case 'auth/code-expired':
+          throw new Error('OTP has expired. Please request a new one');
+        case 'auth/session-expired':
+          throw new Error('OTP session expired. Please request a new OTP');
         default:
           throw new Error('Failed to verify OTP. Please try again');
       }
     }
   };
 
-  /**
-   * Sign in with Google credential
-   */
-  const signInWithGoogle = async (idToken: string): Promise<void> => {
-    try {
-      const credential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(auth, credential);
-    } catch (error) {
-      const authError = error as AuthError;
-      console.error('Google sign in error:', authError);
-      throw new Error('Failed to sign in with Google. Please try again');
-    }
+  const signInWithGoogle = async (_idToken: string): Promise<void> => {
+    throw new Error(
+      'Google Sign-In requires native Google auth setup and is not enabled in this build yet'
+    );
   };
 
   const signOut = async (): Promise<void> => {
     try {
-      await firebaseSignOut(auth);
+      moduleConfirmation = null;
+      await auth().signOut();
     } catch (error) {
       console.error('Sign out error:', error);
       throw new Error('Failed to sign out. Please try again');
@@ -107,7 +107,8 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
   return {
     user,
     loading,
-    signInWithPhone,
+    sendPhoneOtp,
+    verifyPhoneOtp,
     signInWithGoogle,
     signOut,
   };

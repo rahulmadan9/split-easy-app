@@ -1,9 +1,13 @@
 import { useAuth } from "@/hooks/useAuth";
-import { Navigate } from "react-router-dom";
-import Dashboard from "./Dashboard";
+import { Navigate, useLocation } from "react-router-dom";
+import HomePage from "./HomePage";
+import GroupDetailPage from "./GroupDetailPage";
+import GroupSettingsPage from "./GroupSettingsPage";
+import ProfilePage from "./ProfilePage";
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -17,7 +21,30 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  return <Dashboard />;
+  // Route to "/" redirects to "/home"
+  if (location.pathname === "/") {
+    return <Navigate to="/home" replace />;
+  }
+
+  if (location.pathname === "/home") {
+    return <HomePage />;
+  }
+
+  if (location.pathname === "/profile") {
+    return <ProfilePage />;
+  }
+
+  // /group/:id/settings
+  if (/^\/group\/[^/]+\/settings$/.test(location.pathname)) {
+    return <GroupSettingsPage />;
+  }
+
+  // /group/:id
+  if (/^\/group\/[^/]+$/.test(location.pathname)) {
+    return <GroupDetailPage />;
+  }
+
+  return <Navigate to="/home" replace />;
 };
 
 export default Index;

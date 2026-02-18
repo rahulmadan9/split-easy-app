@@ -25,7 +25,7 @@ import { useCurrentGroup } from "@/hooks/useCurrentGroup";
 import { useGroupBalance } from "@/hooks/useGroupBalance";
 import { useGroupExpenses } from "@/hooks/useGroupExpenses";
 import { useGroupMembers } from "@/hooks/useGroupMembers";
-import type { SimplifiedDebt } from "../../shared/types/firebase";
+import type { SimplifiedDebt } from "../../../shared/types/firebase";
 
 const formatINR = (amount: number): string =>
   new Intl.NumberFormat("en-IN", {

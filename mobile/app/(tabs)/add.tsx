@@ -34,13 +34,13 @@ import { useCurrentGroup } from "@/hooks/useCurrentGroup";
 import { useGroupExpenses } from "@/hooks/useGroupExpenses";
 import { useGroupMembers } from "@/hooks/useGroupMembers";
 import { useSmartDefaults } from "@/hooks/useSmartDefaults";
-import { calculateAmount } from "../../shared/lib/amountCalculator";
-import { categories } from "../../shared/constants/categories";
+import { calculateAmount } from "../../../shared/lib/amountCalculator";
+import { categories } from "../../../shared/constants/categories";
 import type {
   SplitType,
   ExpenseCategory,
   ExpenseParticipant,
-} from "../../shared/types/firebase";
+} from "../../../shared/types/firebase";
 
 const formatINR = (amount: number): string =>
   new Intl.NumberFormat("en-IN", {

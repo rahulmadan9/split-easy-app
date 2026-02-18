@@ -1,5 +1,6 @@
 import React from "react";
 import { Stack } from "expo-router";
+import { colors } from "@/lib/colors";
 
 export default function ModalsLayout() {
   return (
@@ -8,15 +9,15 @@ export default function ModalsLayout() {
         presentation: "modal",
         headerShown: true,
         headerStyle: {
-          backgroundColor: "#ffffff",
+          backgroundColor: colors.card,
         },
         headerTitleStyle: {
           fontWeight: "600",
           fontSize: 17,
-          color: "#0f172a",
+          color: colors.foreground,
         },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: "#f8fafc" },
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
       <Stack.Screen

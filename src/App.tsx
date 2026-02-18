@@ -20,9 +20,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/home" element={<Index />} />
+          <Route path="/group/:id" element={<Index />} />
+          <Route path="/group/:id/settings" element={<Index />} />
+          <Route path="/profile" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/join/:inviteCode" element={<JoinGroupLink />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

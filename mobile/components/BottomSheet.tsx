@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import BottomSheetComponent, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
 import { X } from 'lucide-react-native';
+import { colors } from '@/lib/colors';
 
 export interface BottomSheetProps {
   isOpen: boolean;
@@ -46,8 +47,8 @@ export function BottomSheet({
       enablePanDownToClose
       onClose={onClose}
       backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: '#ffffff' }}
-      handleIndicatorStyle={{ backgroundColor: '#e2e8f0' }}
+      backgroundStyle={{ backgroundColor: colors.card }}
+      handleIndicatorStyle={{ backgroundColor: colors.border }}
     >
       <BottomSheetView style={{ flex: 1 }}>
         {title && (
@@ -56,7 +57,7 @@ export function BottomSheet({
               {title}
             </Text>
             <Pressable onPress={onClose} className="p-2">
-              <X size={24} color="#64748b" />
+              <X size={24} color={colors.mutedForeground} />
             </Pressable>
           </View>
         )}

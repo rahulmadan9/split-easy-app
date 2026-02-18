@@ -15,7 +15,19 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.spliteasy.app"
+      "bundleIdentifier": "com.spliteasy.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "spliteasy",
+              "com.spliteasy.app",
+              "com.googleusercontent.apps.974904403538-21559hmrldum3bltm5fkbb246811a35c"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -35,12 +47,24 @@
               "pathPrefix": "/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -54,8 +78,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "a14fc98f-1c5d-445f-a431-43769d36c6ef"
       }
-    }
+    },
+    "owner": "st-nero1"
   }
 }

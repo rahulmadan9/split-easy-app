@@ -1,12 +1,17 @@
 import { doc, setDoc, getDoc, collection, addDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
-import { User } from 'firebase/auth';
+
+interface ProfileUser {
+  uid: string;
+  displayName: string | null;
+  phoneNumber: string | null;
+}
 
 /**
  * Creates or updates a user profile in Firestore.
  * On first login, also creates a personal group for the user.
  */
-export const createUserProfile = async (user: User): Promise<void> => {
+export const createUserProfile = async (user: ProfileUser): Promise<void> => {
   if (!user) return;
 
   const userRef = doc(db, 'users', user.uid);

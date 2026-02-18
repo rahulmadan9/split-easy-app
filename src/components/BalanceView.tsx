@@ -1,14 +1,13 @@
 import { motion } from "framer-motion";
+import { Banknote } from "lucide-react";
 import { useGroupBalance } from "@/hooks/useGroupBalance";
-import { useAuth } from "@/hooks/useAuth";
-import { SettlementSuggestions } from "./SettlementSuggestions";
 
 interface BalanceViewProps {
   groupId: string | null;
+  onSettleUp?: () => void;
 }
 
-const BalanceView = ({ groupId }: BalanceViewProps) => {
-  const { user } = useAuth();
+const BalanceView = ({ groupId, onSettleUp }: BalanceViewProps) => {
   const { myBalance, settlements, loading } = useGroupBalance(groupId);
 
   const formatAmount = (num: number) => {
@@ -97,15 +96,22 @@ const BalanceView = ({ groupId }: BalanceViewProps) => {
         </motion.div>
       </div>
 
-      {/* Settlement Suggestions */}
-      {settlements.length > 0 && groupId && (
+      {/* Settle Up CTA */}
+      {settlements.length > 0 && groupId && onSettleUp && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="w-full max-w-sm mt-6"
+          className="mt-5"
         >
-          <SettlementSuggestions groupId={groupId} />
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={onSettleUp}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-medium text-sm shadow-sm hover:opacity-90 transition-opacity"
+          >
+            <Banknote className="h-4 w-4" />
+            Settle Up
+          </motion.button>
         </motion.div>
       )}
 

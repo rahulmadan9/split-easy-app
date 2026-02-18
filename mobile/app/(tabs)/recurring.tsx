@@ -25,6 +25,8 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Badge } from "@/components/Badge";
 import { EmptyState } from "@/components/EmptyState";
+import { EditRecurringModal } from "@/components/EditRecurringModal";
+import { BulkConfirmModal } from "@/components/BulkConfirmModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentGroup } from "@/hooks/useCurrentGroup";
 import { useGroupMembers } from "@/hooks/useGroupMembers";
@@ -33,8 +35,9 @@ import type {
   RecurringItemWithStatus,
   RecurringExpenseInsert,
 } from "@/hooks/useRecurringExpenses";
-import { categories } from "../../shared/constants/categories";
-import type { ExpenseCategory, SplitType } from "../../shared/types/firebase";
+import { categories } from "../../../shared/constants/categories";
+import { colors } from "@/lib/colors";
+import type { ExpenseCategory, SplitType } from "../../../shared/types/firebase";
 
 const formatINR = (amount: number): string =>
   new Intl.NumberFormat("en-IN", {
@@ -64,12 +67,15 @@ export default function RecurringScreen() {
     updateRecurringExpense,
     deleteRecurringExpense,
     confirmRecurringExpense,
+    bulkConfirm,
     undoConfirmation,
   } = useRecurringExpenses(currentGroupId);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmAmount, setConfirmAmount] = useState("");
+  const [editingItem, setEditingItem] = useState<RecurringItemWithStatus | null>(null);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   // Add form state
   const [newDescription, setNewDescription] = useState("");
@@ -201,7 +207,7 @@ export default function RecurringScreen() {
   if (loading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -223,29 +229,61 @@ export default function RecurringScreen() {
         {/* Summary Cards */}
         <Animated.View
           entering={FadeInDown.delay(100).duration(500)}
-          className="px-4 mt-4 flex-row gap-3"
+          className="px-4 mt-4 flex-row gap-2"
         >
-          <Card className="flex-1 p-3 items-center">
-            <Text className="text-xs text-muted-foreground mb-1">
+          <Card className="flex-1 px-2 py-3 items-center overflow-hidden">
+            <Text
+              className="text-xs text-muted-foreground mb-1 w-full text-center"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
               Total Fixed
             </Text>
-            <Text className="text-lg font-bold text-foreground">
+            <Text
+              className="text-sm font-bold text-foreground w-full text-center"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
               {formatINR(summary.totalFixed)}
             </Text>
           </Card>
 
-          <Card className="flex-1 p-3 items-center">
-            <Text className="text-xs text-muted-foreground mb-1">Paid</Text>
-            <Text className="text-lg font-bold text-positive">
+          <Card className="flex-1 px-2 py-3 items-center overflow-hidden">
+            <Text
+              className="text-xs text-muted-foreground mb-1 w-full text-center"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              Paid So Far
+            </Text>
+            <Text
+              className="text-sm font-bold text-positive w-full text-center"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
               {formatINR(summary.paidSoFar)}
             </Text>
           </Card>
 
-          <Card className="flex-1 p-3 items-center">
-            <Text className="text-xs text-muted-foreground mb-1">
+          <Card className="flex-1 px-2 py-3 items-center overflow-hidden">
+            <Text
+              className="text-xs text-muted-foreground mb-1 w-full text-center"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
               Remaining
             </Text>
-            <Text className="text-lg font-bold text-negative">
+            <Text
+              className="text-sm font-bold text-negative w-full text-center"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
               {formatINR(summary.remaining)}
             </Text>
           </Card>
@@ -258,11 +296,21 @@ export default function RecurringScreen() {
         >
           <View className="flex-row items-center justify-between mb-3">
             <View className="flex-row items-center gap-2">
-              <Clock size={18} color="#f59e0b" />
+              <Clock size={18} color={colors.warning} />
               <Text className="text-lg font-semibold text-foreground">
                 Pending ({pendingItems.length})
               </Text>
             </View>
+            {pendingItems.length > 1 && (
+              <Pressable
+                onPress={() => setShowBulkConfirm(true)}
+                className="px-3 py-1.5 bg-primary rounded-lg"
+              >
+                <Text className="text-xs font-semibold text-primary-foreground">
+                  Confirm All
+                </Text>
+              </Pressable>
+            )}
           </View>
 
           {pendingItems.length === 0 ? (
@@ -333,10 +381,16 @@ export default function RecurringScreen() {
                           Confirm
                         </Button>
                         <Pressable
+                          onPress={() => setEditingItem(item)}
+                          className="p-2"
+                        >
+                          <Edit3 size={18} color={colors.primary} />
+                        </Pressable>
+                        <Pressable
                           onPress={() => handleDelete(item)}
                           className="p-2"
                         >
-                          <Trash2 size={18} color="#ef4444" />
+                          <Trash2 size={18} color={colors.destructive} />
                         </Pressable>
                       </View>
                     </Card>
@@ -353,7 +407,7 @@ export default function RecurringScreen() {
           className="px-4 mt-6"
         >
           <View className="flex-row items-center gap-2 mb-3">
-            <CheckCircle size={18} color="#22c55e" />
+            <CheckCircle size={18} color={colors.positive} />
             <Text className="text-lg font-semibold text-foreground">
               Confirmed ({confirmedItems.length})
             </Text>
@@ -383,12 +437,20 @@ export default function RecurringScreen() {
                           {formatINR(item.confirmation?.confirmedAmount || 0)}
                         </Text>
                       </View>
-                      <Pressable
-                        onPress={() => handleUndo(item)}
-                        className="p-2"
-                      >
-                        <RotateCcw size={18} color="#6366f1" />
-                      </Pressable>
+                      <View className="flex-row items-center gap-1">
+                        <Pressable
+                          onPress={() => setEditingItem(item)}
+                          className="p-2"
+                        >
+                          <Edit3 size={18} color={colors.primary} />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleUndo(item)}
+                          className="p-2"
+                        >
+                          <RotateCcw size={18} color={colors.primary} />
+                        </Pressable>
+                      </View>
                     </View>
                   </Card>
                 </Animated.View>
@@ -406,7 +468,7 @@ export default function RecurringScreen() {
             className="w-full"
           >
             <View className="flex-row items-center gap-2">
-              <Plus size={20} color="#0f172a" />
+              <Plus size={20} color={colors.foreground} />
               <Text className="text-base font-semibold text-foreground">
                 Add Recurring Expense
               </Text>
@@ -495,6 +557,25 @@ export default function RecurringScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Edit Recurring Modal */}
+      <EditRecurringModal
+        visible={!!editingItem}
+        item={editingItem}
+        members={members}
+        currentUserId={user?.uid}
+        onSave={updateRecurringExpense}
+        onDelete={deleteRecurringExpense}
+        onClose={() => setEditingItem(null)}
+      />
+
+      {/* Bulk Confirm Modal */}
+      <BulkConfirmModal
+        visible={showBulkConfirm}
+        pendingItems={pendingItems}
+        onConfirm={bulkConfirm}
+        onClose={() => setShowBulkConfirm(false)}
+      />
     </SafeAreaView>
   );
 }

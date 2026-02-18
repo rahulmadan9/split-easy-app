@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGroupBalance } from "@/hooks/useGroupBalance";
 import { useGroupExpenses } from "@/hooks/useGroupExpenses";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Check, Banknote } from "lucide-react";
+import { ArrowRight, Check, Banknote, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -48,28 +48,31 @@ export function SettlementSuggestions({ groupId }: SettlementSuggestionsProps) {
 
   if (balanceLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!settlements || settlements.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <Banknote className="h-10 w-10 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">All settled up! No payments needed.</p>
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="rounded-full bg-positive/10 p-4 mb-4">
+          <Check className="h-8 w-8 text-positive" />
+        </div>
+        <p className="text-lg font-semibold text-foreground">All settled up!</p>
+        <p className="text-sm text-muted-foreground mt-1">No payments needed.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">
-        Suggested Settlements
-      </h3>
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground px-1">
+        {settlements.length} payment{settlements.length > 1 ? "s" : ""} to settle all debts
+      </p>
       <AnimatePresence>
-        {settlements.map((settlement) => {
+        {settlements.map((settlement, index) => {
           const id = `${settlement.from}-${settlement.to}`;
           const isRecorded = recordedIds.has(id);
           const isRecording = recordingId === id;
@@ -77,38 +80,55 @@ export function SettlementSuggestions({ groupId }: SettlementSuggestionsProps) {
           return (
             <motion.div
               key={id}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                isRecorded ? "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800" : "bg-card"
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ delay: index * 0.05 }}
+              className={`rounded-2xl border p-4 transition-colors ${
+                isRecorded
+                  ? "bg-positive/5 border-positive/20"
+                  : "bg-card border-border/50"
               }`}
             >
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium">{settlement.fromName}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{settlement.toName}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="font-semibold text-foreground">{settlement.fromName}</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">{settlement.toName}</span>
+                  </div>
+                </div>
+                <span className="text-lg font-bold tabular-nums text-foreground">
                   ₹{settlement.amount.toLocaleString("en-IN")}
                 </span>
-                {isRecorded ? (
-                  <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
-                    <Check className="h-3.5 w-3.5" />
-                    Recorded
-                  </span>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRecordSettlement(settlement)}
-                    disabled={isRecording}
-                  >
-                    {isRecording ? "Recording..." : "Record Payment"}
-                  </Button>
-                )}
               </div>
+
+              {isRecorded ? (
+                <div className="flex items-center gap-2 text-positive">
+                  <div className="rounded-full bg-positive/10 p-1">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm font-medium">Payment recorded</span>
+                </div>
+              ) : (
+                <Button
+                  className="w-full rounded-xl"
+                  onClick={() => handleRecordSettlement(settlement)}
+                  disabled={isRecording}
+                >
+                  {isRecording ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Recording...
+                    </>
+                  ) : (
+                    <>
+                      <Banknote className="h-4 w-4 mr-2" />
+                      Record Payment
+                    </>
+                  )}
+                </Button>
+              )}
             </motion.div>
           );
         })}

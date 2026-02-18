@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { updateProfile } from "firebase/auth";
 import { doc, onSnapshot, Timestamp, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { validateDisplayName } from "../../shared/lib/validation";
@@ -70,7 +69,7 @@ export const useProfiles = () => {
       try {
         const nextName = result.data.display_name;
         await Promise.all([
-          updateProfile(user, { displayName: nextName }),
+          user.updateProfile({ displayName: nextName }),
           updateDoc(doc(db, "users", user.uid), {
             displayName: nextName,
             updatedAt: serverTimestamp(),

@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn, SlideInRight } from "react-native-reanimated";
@@ -17,26 +16,26 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { createUserProfile } from "@/lib/profiles";
-import { auth } from "@/lib/firebase";
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult,
-} from "firebase/auth";
+import auth from "@react-native-firebase/auth";
 
 type AuthStep = "initial" | "phone" | "otp" | "display-name";
 
-export default function SignInScreen() {
-  const { signInWithGoogle, signInWithPhone } = useFirebaseAuth();
+// Module-level persistence so state survives the remount caused by Firebase's
+// reCAPTCHA callback URL being routed through Expo Router's Linking handler.
+let _persistedStep: AuthStep = "initial";
+let _persistedPhone = "";
 
-  const [step, setStep] = useState<AuthStep>("initial");
-  const [phoneNumber, setPhoneNumber] = useState("");
+export default function SignInScreen() {
+  const { sendPhoneOtp, verifyPhoneOtp } = useFirebaseAuth();
+
+  const [step, _setStep] = useState<AuthStep>(_persistedStep);
+  const [phoneNumber, _setPhone] = useState(_persistedPhone);
   const [otp, setOtp] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [verificationId, setVerificationId] = useState<string | null>(null);
-  const [confirmationResult, setConfirmationResult] =
-    useState<ConfirmationResult | null>(null);
+
+  const setStep = (s: AuthStep) => { _persistedStep = s; _setStep(s); };
+  const setPhoneNumber = (p: string) => { _persistedPhone = p; _setPhone(p); };
 
   const formatPhoneNumber = (phone: string): string => {
     const cleaned = phone.replace(/\D/g, "");
@@ -65,22 +64,7 @@ export default function SignInScreen() {
     setLoading(true);
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber);
-
-      // Note: RecaptchaVerifier requires a DOM element, which works in
-      // Expo web but not in native. For native builds, use expo-dev-client
-      // with @react-native-firebase/auth for proper phone auth.
-      // This implementation works for Expo web and serves as a reference.
-      const appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-      });
-
-      const result = await signInWithPhoneNumber(
-        auth,
-        formattedPhone,
-        appVerifier
-      );
-      setConfirmationResult(result);
-      setVerificationId(formattedPhone);
+      await sendPhoneOtp(formattedPhone);
       setStep("otp");
       Toast.show({
         type: "success",
@@ -108,23 +92,20 @@ export default function SignInScreen() {
 
     setLoading(true);
     try {
-      if (confirmationResult) {
-        const userCredential = await confirmationResult.confirm(otp);
-        const user = userCredential.user;
+      const user = await verifyPhoneOtp(otp);
 
-        if (!user.displayName) {
-          setStep("display-name");
-          setLoading(false);
-          return;
-        }
-
-        await createUserProfile(user);
-        Toast.show({
-          type: "success",
-          text1: "Welcome back!",
-          text2: `Signed in as ${user.displayName}`,
-        });
+      if (!user.displayName) {
+        setStep("display-name");
+        setLoading(false);
+        return;
       }
+
+      await createUserProfile(user);
+      Toast.show({
+        type: "success",
+        text1: "Welcome back!",
+        text2: `Signed in as ${user.displayName}`,
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to verify OTP";
@@ -146,10 +127,9 @@ export default function SignInScreen() {
 
     setLoading(true);
     try {
-      const user = auth.currentUser;
+      const user = auth().currentUser;
       if (user) {
-        const { updateProfile } = await import("firebase/auth");
-        await updateProfile(user, { displayName: displayName.trim() });
+        await user.updateProfile({ displayName: displayName.trim() });
         await user.reload();
         await createUserProfile(user);
         Toast.show({
@@ -271,9 +251,6 @@ export default function SignInScreen() {
                 >
                   Back
                 </Button>
-
-                {/* Hidden recaptcha container for web */}
-                <View nativeID="recaptcha-container" />
               </Animated.View>
             )}
 

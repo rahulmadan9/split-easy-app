@@ -6,6 +6,8 @@ import {
   orderBy,
   onSnapshot,
   addDoc,
+  updateDoc,
+  doc,
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
@@ -157,9 +159,34 @@ export const useGroupExpenses = (groupId: string | null) => {
     [user, groupId, members]
   );
 
+  const updateExpense = useCallback(
+    async (expenseId: string, data: Partial<ExpenseInsert>) => {
+      if (!user || !groupId) throw new Error("Not logged in or no group selected");
+
+      const updateData: Record<string, any> = { updatedAt: serverTimestamp() };
+
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.amount !== undefined) updateData.amount = Number(data.amount);
+      if (data.paid_by !== undefined) {
+        updateData.paidBy = data.paid_by;
+        const paidByMember = members.find((m) => m.userId === data.paid_by);
+        updateData.paidByName = paidByMember?.userName || "";
+      }
+      if (data.split_type !== undefined) updateData.splitType = data.split_type;
+      if (data.participants !== undefined) updateData.participants = data.participants;
+      if (data.category !== undefined) updateData.category = data.category;
+      if (data.expense_date !== undefined) updateData.expenseDate = data.expense_date;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+
+      await updateDoc(doc(db, "expenses", expenseId), updateData);
+    },
+    [user, groupId, members]
+  );
+
   return {
     expenses,
     loading,
     addExpense,
+    updateExpense,
   };
 };
