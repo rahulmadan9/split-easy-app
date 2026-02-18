@@ -52,3 +52,4 @@ mobile/dist/
 *.orig.*
 google-services.json
 google-play-service-account.json
+GoogleService-Info.plist
